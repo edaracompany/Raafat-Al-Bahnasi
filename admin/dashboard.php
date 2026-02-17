@@ -2,6 +2,153 @@
 require_once '../config/database.php';
 requireLogin();
 
+// التأكد من أن الدوال غير معرفة مسبقاً
+if (!function_exists('ensureDirectoryExists')) {
+    function ensureDirectoryExists($path) {
+        $parts = explode('/', $path);
+        $currentPath = '';
+        
+        foreach ($parts as $part) {
+            $currentPath .= $part . '/';
+            if (empty($part)) continue;
+            if (!file_exists($currentPath)) {
+                mkdir($currentPath, 0777, true);
+            }
+        }
+        
+        if (!is_writable($path)) {
+            chmod($path, 0777);
+        }
+        
+        return true;
+    }
+}
+
+// التحقق من أن الدالة غير معرفة قبل تعريفها
+if (!function_exists('uploadImage')) {
+    function uploadImage($file, $folder = 'products') {
+        $targetDir = __DIR__ . "/uploads/$folder/";
+        
+        if (!file_exists($targetDir)) {
+            if (function_exists('ensureDirectoryExists')) {
+                ensureDirectoryExists($targetDir);
+            } else {
+                mkdir($targetDir, 0777, true);
+            }
+        }
+        
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return ['success' => false, 'message' => 'خطأ في رفع الملف'];
+        }
+        
+        if ($file['size'] > 5 * 1024 * 1024) {
+            return ['success' => false, 'message' => 'حجم الملف كبير جداً (الحد الأقصى 5 ميجابايت)'];
+        }
+        
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
+        $fileType = mime_content_type($file['tmp_name']);
+        
+        if (!in_array($fileType, $allowedTypes)) {
+            return ['success' => false, 'message' => 'نوع الملف غير مسموح'];
+        }
+        
+        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $newFilename = uniqid() . '_' . time() . '.' . $extension;
+        $targetFile = $targetDir . $newFilename;
+        
+        if (move_uploaded_file($file['tmp_name'], $targetFile)) {
+            return [
+                'success' => true, 
+                'filename' => $newFilename,
+                'path' => "uploads/$folder/" . $newFilename
+            ];
+        } else {
+            return ['success' => false, 'message' => 'فشل في حفظ الملف'];
+        }
+    }
+}
+
+if (!function_exists('getImageUrl')) {
+    function getImageUrl($imageName, $folder = 'products') {
+        if (empty($imageName)) {
+            return 'assets/images/no-image.png';
+        }
+        
+        $imagePath = __DIR__ . "/uploads/$folder/" . $imageName;
+        
+        if (file_exists($imagePath)) {
+            return "uploads/$folder/" . $imageName;
+        } else {
+            return 'assets/images/no-image.png';
+        }
+    }
+}
+
+if (!function_exists('deleteImage')) {
+    function deleteImage($imageName, $folder = 'products') {
+        if (empty($imageName)) return true;
+        
+        $imagePath = __DIR__ . "/uploads/$folder/" . $imageName;
+        if (file_exists($imagePath)) {
+            return unlink($imagePath);
+        }
+        return true;
+    }
+}
+
+// إنشاء المجلدات الرئيسية
+$mainUploadsDir = __DIR__ . '/uploads/';
+$productsUploadsDir = __DIR__ . '/uploads/products/';
+$assetsImagesDir = __DIR__ . '/assets/images/';
+
+if (!file_exists($mainUploadsDir)) {
+    if (function_exists('ensureDirectoryExists')) {
+        ensureDirectoryExists($mainUploadsDir);
+    } else {
+        mkdir($mainUploadsDir, 0777, true);
+    }
+}
+
+if (!file_exists($productsUploadsDir)) {
+    if (function_exists('ensureDirectoryExists')) {
+        ensureDirectoryExists($productsUploadsDir);
+    } else {
+        mkdir($productsUploadsDir, 0777, true);
+    }
+}
+
+if (!file_exists($assetsImagesDir)) {
+    if (function_exists('ensureDirectoryExists')) {
+        ensureDirectoryExists($assetsImagesDir);
+    } else {
+        mkdir($assetsImagesDir, 0777, true);
+    }
+}
+
+// باقي الكود كما هو...
+// تحديد الصفحة الحالية
+$page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
+
+// ==============================================
+// معالجة الأقسام (Categories)
+// ==============================================
+if (isset($_POST['add_category'])) {
+    $name_ar = cleanInput($_POST['name_ar']);
+    $name_en = cleanInput($_POST['name_en']);
+    $slug = cleanInput($_POST['slug']) ?: str_replace(' ', '-', strtolower($name_en));
+    $sort_order = (int)$_POST['sort_order'];
+    
+    $stmt = $pdo->prepare("INSERT INTO categories (name_ar, name_en, slug, sort_order) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$name_ar, $name_en, $slug, $sort_order]);
+    header('Location: dashboard.php?page=categories&msg=added');
+    exit();
+}
+
+// ... rest of your existing code ...
+// ==============================================
+// باقي الكود كما هو (معالجة الأقسام، الماركات، المنتجات)
+// ==============================================
+
 // تحديد الصفحة الحالية
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 
@@ -81,13 +228,13 @@ if (isset($_GET['delete_brand'])) {
 if (isset($_GET['delete_product'])) {
     $id = (int)$_GET['delete_product'];
     
-    // حذف الصورة أولاً
+    // حذف الصورة أولاً باستخدام الدالة الجديدة
     $stmt = $pdo->prepare("SELECT image FROM products WHERE id = ?");
     $stmt->execute([$id]);
     $product = $stmt->fetch();
     
-    if ($product && $product['image'] && file_exists("uploads/products/" . $product['image'])) {
-        unlink("uploads/products/" . $product['image']);
+    if ($product && $product['image']) {
+        deleteImage($product['image'], 'products');
     }
     
     $stmt = $pdo->prepare("DELETE FROM products WHERE id=?");
@@ -154,8 +301,8 @@ if (isset($_POST['update_product'])) {
         $stmt = $pdo->prepare("SELECT image FROM products WHERE id = ?");
         $stmt->execute([$product_id]);
         $old_image = $stmt->fetchColumn();
-        if ($old_image && file_exists("uploads/products/" . $old_image)) {
-            unlink("uploads/products/" . $old_image);
+        if ($old_image) {
+            deleteImage($old_image, 'products');
         }
         
         // رفع الصورة الجديدة
@@ -276,10 +423,11 @@ $all_products = $pdo->query("
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة التحكم - معرض رأفت البهنسي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* نفس الـ CSS السابق يبقى كما هو */
         * {
             margin: 0;
             padding: 0;
@@ -1182,8 +1330,11 @@ $all_products = $pdo->query("
                                         <?php foreach ($latest_products as $product): ?>
                                         <tr>
                                             <td>
-                                                <?php if ($product['image'] && file_exists("uploads/products/" . $product['image'])): ?>
-                                                    <img src="uploads/products/<?php echo $product['image']; ?>" width="50" height="50" style="object-fit: cover; border-radius: 10px;">
+                                                <?php 
+                                                $imageUrl = getImageUrl($product['image'], 'products');
+                                                if ($imageUrl && file_exists(__DIR__ . '/' . $imageUrl)): 
+                                                ?>
+                                                    <img src="<?php echo $imageUrl; ?>" width="50" height="50" style="object-fit: cover; border-radius: 10px;">
                                                 <?php else: ?>
                                                     <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                                                         <i class="fas fa-image" style="color: #ccc;"></i>
@@ -1331,11 +1482,14 @@ $all_products = $pdo->query("
                                     <?php foreach ($all_products as $product): ?>
                                     <tr>
                                         <td>
-                                            <?php if ($product['image'] && file_exists("uploads/products/" . $product['image'])): ?>
-                                                <img src="uploads/products/<?php echo $product['image']; ?>" width="50" height="50" style="object-fit: cover; border-radius: 10px;">
+                                            <?php 
+                                            $imageUrl = getImageUrl($product['image'], 'products');
+                                            if ($imageUrl && file_exists(__DIR__ . '/' . $imageUrl)): 
+                                            ?>
+                                                <img src="<?php echo $imageUrl; ?>" width="50" height="50" style="object-fit: cover; border-radius: 10px;">
                                             <?php else: ?>
                                                 <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                                    <i class="fas fa-image"></i>
+                                                    <i class="fas fa-image" style="color: #ccc;"></i>
                                                 </div>
                                             <?php endif; ?>
                                         </td>
@@ -1429,6 +1583,7 @@ $all_products = $pdo->query("
                                     <div class="form-group">
                                         <label>صورة المنتج</label>
                                         <input type="file" name="image" accept="image/*">
+                                        <small style="color: #666; display: block; margin-top: 5px;">الصور المسموحة: JPG, PNG, GIF, WEBP (الحد الأقصى 5 ميجابايت)</small>
                                     </div>
                                     
                                     <h3 style="margin: 20px 0;">المميزات</h3>
@@ -1683,6 +1838,7 @@ $all_products = $pdo->query("
                             <div class="form-group">
                                 <label>صورة المنتج</label>
                                 <input type="file" name="image" accept="image/*">
+                                <small style="color: #666; display: block; margin-top: 5px;">اتركه فارغاً إذا لم ترد تغيير الصورة</small>
                                 <div id="current_image" style="margin-top: 10px;"></div>
                             </div>
                             
@@ -1837,12 +1993,24 @@ $all_products = $pdo->query("
             
             const imageContainer = document.getElementById('current_image');
             if (product.image) {
-                imageContainer.innerHTML = `
-                    <div style="margin-top: 10px;">
-                        <img src="uploads/products/${product.image}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd;">
-                        <p style="font-size: 12px; color: #666; margin-top: 5px;">الصورة الحالية</p>
-                    </div>
-                `;
+                // التحقق من وجود الصورة فعلياً
+                const imagePath = 'uploads/products/' + product.image;
+                fetch(imagePath, { method: 'HEAD' })
+                    .then(res => {
+                        if (res.ok) {
+                            imageContainer.innerHTML = `
+                                <div style="margin-top: 10px;">
+                                    <img src="${imagePath}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd;">
+                                    <p style="font-size: 12px; color: #666; margin-top: 5px;">الصورة الحالية</p>
+                                </div>
+                            `;
+                        } else {
+                            imageContainer.innerHTML = '<p style="color: #999;">لا توجد صورة</p>';
+                        }
+                    })
+                    .catch(() => {
+                        imageContainer.innerHTML = '<p style="color: #999;">لا توجد صورة</p>';
+                    });
             } else {
                 imageContainer.innerHTML = '';
             }

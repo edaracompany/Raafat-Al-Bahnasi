@@ -1,31 +1,52 @@
 <?php
-require_once '../config/database.php';
+// بدلاً من require_once '../config/database.php';
+
+// بدء الجلسة
+session_start();
 
 // إذا كان المستخدم مسجل دخوله بالفعل
-if (isLoggedIn()) {
+if (isset($_SESSION['user_id'])) {
     header('Location: dashboard.php');
     exit();
 }
 
 $error = '';
 
+// تعريف المستخدمين المسموح لهم (بدون قاعدة بيانات)
+$valid_users = [
+    'admin' => [
+        'password' => 'admin123',
+        'full_name' => 'مدير النظام',
+        'role' => 'admin'
+    ],
+    // يمكنك إضافة المزيد من المستخدمين هنا
+    'manager' => [
+        'password' => 'manager123',
+        'full_name' => 'مدير المعرض',
+        'role' => 'manager'
+    ],
+    'user' => [
+        'password' => 'user123',
+        'full_name' => 'مستخدم عادي',
+        'role' => 'user'
+    ]
+];
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = cleanInput($_POST['username']);
+    $username = trim($_POST['username']);
     $password = $_POST['password'];
     
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
-    $stmt->execute([$username]);
-    $user = $stmt->fetch();
-    
-    if ($user && password_verify($password, $user['password'])) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['username'] = $user['username'];
+    // التحقق من وجود المستخدم في المصفوفة
+    if (isset($valid_users[$username]) && $valid_users[$username]['password'] === $password) {
+        $user = $valid_users[$username];
+        
+        $_SESSION['user_id'] = $username; // استخدام اسم المستخدم كـ ID
+        $_SESSION['username'] = $username;
         $_SESSION['user_role'] = $user['role'];
         $_SESSION['user_name'] = $user['full_name'];
         
-        // تحديث آخر دخول
-        $stmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
-        $stmt->execute([$user['id']]);
+        // تسجيل وقت الدخول
+        $_SESSION['last_login'] = date('Y-m-d H:i:s');
         
         header('Location: dashboard.php');
         exit();
@@ -118,6 +139,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             text-align: center;
         }
         
+        .info-box {
+            background: #e8f4fd;
+            color: #01396A;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-align: center;
+            border-right: 4px solid #01396A;
+        }
+        
         .form-group {
             margin-bottom: 20px;
         }
@@ -180,6 +212,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: #666;
             font-size: 14px;
         }
+        
+        .demo-credentials {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+        
+        .demo-credentials p {
+            margin-bottom: 5px;
+            color: #01396A;
+            font-weight: 600;
+        }
+        
+        .demo-credentials ul {
+            list-style: none;
+            color: #666;
+        }
+        
+        .demo-credentials li {
+            margin-bottom: 3px;
+        }
     </style>
 </head>
 <body>
@@ -190,6 +245,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             <h2>لوحة التحكم</h2>
             <p>معرض رأفت البهنسي</p>
+        </div>
+        
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i> 
+            للدخول كمسؤول: admin | admin123
         </div>
         
         <?php if ($error): ?>
@@ -203,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <label>اسم المستخدم</label>
                 <div class="input-group">
                     <i class="fas fa-user"></i>
-                    <input type="text" name="username" required>
+                    <input type="text" name="username" placeholder="أدخل اسم المستخدم" required>
                 </div>
             </div>
             
@@ -211,7 +271,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <label>كلمة المرور</label>
                 <div class="input-group">
                     <i class="fas fa-lock"></i>
-                    <input type="password" name="password" required>
+                    <input type="password" name="password" placeholder="أدخل كلمة المرور" required>
                 </div>
             </div>
             
@@ -219,6 +279,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
             </button>
         </form>
+        
+        <div class="demo-credentials">
+            <p><i class="fas fa-key"></i> بيانات الدخول المتاحة:</p>
+            <ul>
+                <li><strong>admin</strong> | admin123 (مدير النظام)</li>
+            </ul>
+        </div>
         
         <div class="footer">
             جميع الحقوق محفوظة &copy; 2024

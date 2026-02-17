@@ -2450,6 +2450,181 @@
 .scroll-top:hover {
     transform: scale(1.1) translateY(-5px);
 }
+/* ===== Lightbox Modal ===== */
+.lightbox-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 9999;
+    cursor: pointer;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.lightbox-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.lightbox-image-container {
+    position: relative;
+    max-width: 95vw;
+    max-height: 95vh;
+    animation: zoomIn 0.3s ease;
+}
+
+@keyframes zoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.lightbox-image {
+    max-width: 100%;
+    max-height: 95vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    z-index: 10000;
+    backdrop-filter: blur(5px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: rotate(90deg) scale(1.1);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.lightbox-caption {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-size: 18px;
+    padding: 12px 25px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 50px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    max-width: 80%;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* تحسينات للأجهزة الصغيرة */
+@media screen and (max-width: 768px) {
+    .lightbox-close {
+        top: 15px;
+        right: 15px;
+        width: 45px;
+        height: 45px;
+        font-size: 28px;
+    }
+    
+    .lightbox-caption {
+        bottom: 15px;
+        font-size: 16px;
+        padding: 10px 20px;
+        max-width: 90%;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .lightbox-close {
+        top: 10px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+    }
+    
+    .lightbox-caption {
+        bottom: 10px;
+        font-size: 14px;
+        padding: 8px 16px;
+        max-width: 95%;
+    }
+}
+
+@media screen and (max-width: 360px) {
+    .lightbox-close {
+        width: 35px;
+        height: 35px;
+        font-size: 22px;
+    }
+    
+    .lightbox-caption {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+}
+
+/* تحسينات للمس */
+@media (hover: none) and (pointer: coarse) {
+    .lightbox-close:active {
+        background: rgba(255, 255, 255, 0.4);
+        transform: rotate(90deg) scale(0.95);
+    }
+}
+
+/* جعل الصورة قابلة للنقر مع تأثير بسيط */
+.product-image {
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    position: relative;
+}
+
+.product-image:hover {
+    transform: scale(1.02);
+}
+
+.product-image img {
+    transition: all 0.3s ease;
+}
+
+.product-image:hover img {
+    opacity: 0.9;
+}
     </style>
 </head>
 <body>
@@ -2603,14 +2778,14 @@
                             <span class="product-badge">جديد</span>
                             <?php endif; ?>
                             
-                            <div class="product-image">
-                                <?php if ($product['image'] && file_exists("admin/uploads/products/" . $product['image'])): ?>
-                                <img src="admin/uploads/products/<?php echo $product['image']; ?>" alt="<?php echo $product['name_ar']; ?>">
-                                <?php else: ?>
-                                <img src="https://via.placeholder.com/300x300?text=<?php echo urlencode($product['name_ar']); ?>" alt="<?php echo $product['name_ar']; ?>">
-                                <?php endif; ?>
-                                <span class="product-brand"><?php echo $product['brand_name']; ?></span>
-                            </div>
+                           <div class="product-image" data-index="<?php echo $loop_index; ?>">
+    <?php if ($product['image'] && file_exists("admin/uploads/products/" . $product['image'])): ?>
+    <img src="admin/uploads/products/<?php echo $product['image']; ?>" alt="<?php echo $product['name_ar']; ?>">
+    <?php else: ?>
+    <img src="https://via.placeholder.com/300x300?text=<?php echo urlencode($product['name_ar']); ?>" alt="<?php echo $product['name_ar']; ?>">
+    <?php endif; ?>
+    <span class="product-brand"><?php echo $product['brand_name']; ?></span>
+</div>
                             
                             <div class="product-info">
                                 <h3 class="product-name"><?php echo $product['name_ar']; ?></h3>
@@ -2643,6 +2818,17 @@
                             </div>
                         </div>
                         <?php endforeach; ?>
+                      <!-- Lightbox Modal -->
+<div class="lightbox-modal" id="lightboxModal" onclick="closeLightbox(event)">
+    <div class="lightbox-content">
+        <button class="lightbox-close" onclick="closeLightbox(event)">×</button>
+        
+        <div class="lightbox-image-container">
+            <img class="lightbox-image" id="lightboxImage" src="" alt="">
+            <div class="lightbox-caption" id="lightboxCaption"></div>
+        </div>
+    </div>
+</div>
                     </div>
                     
                     <?php if (empty($products)): ?>
@@ -2682,7 +2868,7 @@
                         </div>
                         <div class="card-content">
                             <h4>الهاتف</h4>
-                            <p dir="ltr">+962 79 972 3795</p>
+                            <p dir="ltr">+963 992 638 977⁩</p>
                         </div>
                     </div>
 
@@ -2692,7 +2878,7 @@
                         </div>
                         <div class="card-content">
                             <h4>واتساب</h4>
-                            <p dir="ltr">+962 79 972 3795</p>
+                            <p dir="ltr">+963 992 638 977</p>
                             <a href="https://wa.me/962799723795" class="whatsapp-link" target="_blank">
                                 <i class="fab fa-whatsapp"></i> راسلنا الآن
                             </a>
@@ -2750,8 +2936,8 @@
                 <div class="footer-col">
                     <h4>تواصل معنا</h4>
                     <ul>
-                        <li><i class="fas fa-phone"></i> <span dir="ltr">+962 79 972 3795</span></li>
-                        <li><i class="fab fa-whatsapp"></i> <span dir="ltr">+962 79 972 3795</span></li>
+                        <li><i class="fas fa-phone"></i> <span dir="ltr">+963 992 638 977</span></li>
+                        <li><i class="fab fa-whatsapp"></i> <span dir="ltr">+963 992 638 977</span></li>
                         <li><i class="fas fa-map-marker-alt"></i> دمشق - سوريا</li>
                     </ul>
                 </div>
@@ -2918,6 +3104,54 @@ function openWhatsApp(productId) {
             behavior: 'smooth'
         });
     });
+    // ===== Lightbox Function =====
+function openLightbox(imageSrc, caption) {
+    const modal = document.getElementById('lightboxModal');
+    const lightboxImage = document.getElementById('lightboxImage');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+    
+    lightboxImage.src = imageSrc;
+    lightboxCaption.textContent = caption;
+    
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox(event) {
+    // إغلاق عند النقر على الخلفية أو زر الإغلاق
+    if (event.target.classList.contains('lightbox-modal') || 
+        event.target.classList.contains('lightbox-close')) {
+        const modal = document.getElementById('lightboxModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+// إضافة حدث النقر على الصور
+document.addEventListener('DOMContentLoaded', function() {
+    const productImages = document.querySelectorAll('.product-image');
+    
+    productImages.forEach((container) => {
+        container.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const img = this.querySelector('img');
+            if (img) {
+                openLightbox(img.src, img.alt);
+            }
+        });
+    });
+    
+    // إغلاق اللايت بوكس بالضغط على ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('lightboxModal');
+            if (modal.style.display === 'block') {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+            }
+        }
+    });
+});
     </script>
 </body>
 </html>
